@@ -5,12 +5,12 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import numpy as np
 import itertools
 from random import random, seed
-from Methods import ols
+from Methods import linregtools
 
 fig = plt.figure()
 ax = fig.gca(projection="3d")
 
-# Make data.
+# Make data
 n=20
 nn=n*n
 x = np.linspace(0, 1, n)
@@ -26,11 +26,8 @@ def FrankeFunction(x,y):
     return term1 + term2 + term3 + term4
 
 f = FrankeFunction(xm, ym)
-f = f + np.random.randn(n,n)*0.01
-olsf = ols(f,x,y,5)
-freg = olsf.get_reg_vector()
-ftrue = olsf.get_true_vector()
-fpred = olsf.get_prediction()
+f = f + np.random.randn(n,n)*0.25
+object_f = linregtools(f,x,y,5)
 
 # MSE
 def MSE(x,y):
@@ -45,22 +42,36 @@ def R2(x_true,x_predict):
     denominator = np.sum((x_true-x_avg)**2)
     return 1 - enumerator/denominator
 
-# bootstrap
-training_data_sample_size=350
-fnew = np.zeros((n,n))
-print("Bootstrap method")
-for i in range(1,11):
-    freg_bootstrap_step, training_data_id = olsf.get_bootstrap_step(training_data_sample_size)
-    fnew = np.copy(f)
-    for item in training_data_id:
-        fnew[item[1],item[0]]=0.0
-        freg_bootstrap_step[item[1],item[0]]=0.0
-    print("step: ", i, " MSE: ", MSE(fnew,freg_bootstrap_step)," R2 score: ", R2(fnew, freg_bootstrap_step))
+# Bootstrap
+def bootstrap(training_data_sample_size, iterations, object, *args):
+    if len(args)==0:
+        print("Bootstrap: Ordinary least squares")
+    elif len(args)==1:
+        print("Bootstrap: Ridge regression")
+    elif len(args)==2:
+        print("Bootstrap: LASSO regression")
+    for i in range(1,iterations+1):
+        freg_bootstrap_step, training_data_id = object.get_bootstrap_step(training_data_sample_size,*args)
+        fnew = np.copy(f)
+        for item in training_data_id:
+            fnew[item[1],item[0]]=0.0
+            freg_bootstrap_step[item[1],item[0]]=0.0
+        print("step: ", i, " MSE: ", MSE(fnew,freg_bootstrap_step)," R2 score: ", R2(fnew, freg_bootstrap_step))
 
-freg_bootstrap_step, training_data_id = olsf.get_bootstrap_step(100)
+training_data_sample_size=350
+iterations = 10
+fnew = np.zeros((n,n))
+LAMBDA = 0.01
+epsilon = 0.01
+
+bootstrap(training_data_sample_size, iterations, object_f)
+bootstrap(training_data_sample_size, iterations, object_f, LAMBDA)
+bootstrap(training_data_sample_size, iterations, object_f , LAMBDA, epsilon)
+
 # Plot regression of surface
-#surf = ax.plot_surface(xm, ym, freg, cmap=cm.coolwarm, linewidth=0, antialiased=False)
-surf = ax.plot_surface(xm, ym, freg_bootstrap_step, cmap=cm.coolwarm, linewidth=0, antialiased=False)
+freg =  object_f.get_reg()
+print(" R2 score: ", R2(f, freg))
+surf = ax.plot_surface(xm, ym, freg, cmap=cm.coolwarm, linewidth=0, antialiased=False)
 
 # Customize the z axis.
 ax.set_zlim(-0.10, 1.40)
