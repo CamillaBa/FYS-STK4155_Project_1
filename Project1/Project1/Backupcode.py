@@ -148,3 +148,31 @@
     #    return s
 
 
+
+
+
+            #if len(args) == 0:
+            #    betanew = self.__get_beta(Xnew,znew)
+            #elif len(args) == 1:
+            #    LAMBDA=args[0]
+            #    betanew = self.__get_beta(Xnew,znew,LAMBDA)
+            #elif len(args) == 2:
+            #    LAMBDA=args[0]
+            #    epsilon = args[1]
+            #    betanew = self.__get_beta(Xnew,znew,LAMBDA,epsilon)
+            #else:
+            #    print("Wrong arguments.")
+            #    return (0, training_data_id)
+
+        #if len(args) == 0:
+        #    # get beta (Ordinary least square)
+        #    beta = self.__get_beta(self.X,self.z)
+        #elif len(args) == 1:
+        #    # get beta (Ridge regression)
+        #    LAMBDA = args[0]
+        #    beta = self.__get_beta(self.X,self.z,LAMBDA)
+        #elif len(args) == 2:
+        #    # get beta (Lasso regression)
+        #    LAMBDA = args[0]
+        #    epsilon = args[1]
+            

@@ -6,6 +6,7 @@ import numpy as np
 import itertools
 from random import random, seed
 from Methods import linregtools
+from imageio import imread
 
 fig = plt.figure()
 ax = fig.gca(projection="3d")
@@ -26,7 +27,7 @@ def FrankeFunction(x,y):
     return term1 + term2 + term3 + term4
 
 f = FrankeFunction(xm, ym)
-f = f + np.random.randn(n,n)*0.25
+f = f + np.random.randn(n,n)*0.05
 object_f = linregtools(f,x,y,5)
 
 # MSE
@@ -64,36 +65,23 @@ fnew = np.zeros((n,n))
 LAMBDA = 0.01
 epsilon = 0.01
 
-bootstrap(training_data_sample_size, iterations, object_f)
-bootstrap(training_data_sample_size, iterations, object_f, LAMBDA)
-bootstrap(training_data_sample_size, iterations, object_f , LAMBDA, epsilon)
+#bootstrap(training_data_sample_size, iterations, object_f)
+#bootstrap(training_data_sample_size, iterations, object_f, LAMBDA)
+#bootstrap(training_data_sample_size, iterations, object_f , LAMBDA, epsilon)
 
 # Plot regression of surface
-freg =  object_f.get_reg()
-print(" R2 score: ", R2(f, freg))
-surf = ax.plot_surface(xm, ym, freg, cmap=cm.coolwarm, linewidth=0, antialiased=False)
+#freg =  object_f.get_reg(LAMBDA,epsilon)
+#print(" R2 score: ", R2(f, freg))
+#surf = ax.plot_surface(xm, ym, freg, cmap=cm.coolwarm, linewidth=0, antialiased=False)
 
 # Customize the z axis.
-ax.set_zlim(-0.10, 1.40)
-ax.zaxis.set_major_locator(LinearLocator(10))
-ax.zaxis.set_major_formatter(FormatStrFormatter("%.02f"))
+#ax.set_zlim(-0.10, 1.40)
+#ax.zaxis.set_major_locator(LinearLocator(10))
+#ax.zaxis.set_major_formatter(FormatStrFormatter("%.02f"))
 
 # Add a color bar which maps values to colors.
-fig.colorbar(surf, shrink=0.5, aspect=5)
-plt.show()
-
-
-
-
-
-
-
-
-
-
-
-
-
+#fig.colorbar(surf, shrink=0.5, aspect=5)
+#plt.show()
 # Variance of beta ??
 #sigma2 = sum((zreg-z)**2)/(n-5-1)
 #var_covar_matrix_beta = invXTX*sigma2
@@ -104,3 +92,64 @@ plt.show()
 #confidence_intervals = []
 #for i in range(0,21):
 #    print([beta[i]-2*sigma[i],beta[i]+2*sigma[i]])
+
+# Load the terrain as np.array and normalize it
+terrain1 = np.array(imread('SRTM_data_Norway_1.tif'))
+max_height = np.amax(terrain1)
+terrain1 = terrain1/max_height
+
+# Regression on small rectangle from 'SRTM_data_Norway_1.tif'
+imin = 0; imax = 50; jmin = 0; jmax = 50
+m_zoom = imax-imin
+n_zoom = jmax-jmin
+i_zoom = np.arange(imin,imax,1)
+j_zoom = np.arange(jmin,jmax,1)
+terrain1_zoom = np.zeros((m_zoom,n_zoom))
+terrain1_zoom[:,:] = terrain1[imin:imax,jmin:jmax]
+x = np.linspace(0,1,m_zoom)
+y = np.linspace(0,1,n_zoom )
+xm, ym = np.meshgrid(x,y)
+#object_terrain1_zoom = linregtools(terrain1_zoom,x,y,9)
+#terrain1_zoom_reg = object_terrain1_zoom.get_reg()
+#surf = ax.plot_surface(xm, ym, terrain1_zoom_reg  , cmap=cm.coolwarm, linewidth=0, antialiased=False)
+#print(" R2 score: ", R2(terrain1_zoom, terrain1_zoom_reg))
+
+# Convert terrain data to low quality
+square_length = 20
+square_size = int(square_length*square_length)
+m = len(terrain1[0,:])
+n = len(terrain1)
+m_new = int(m/square_length)
+n_new = int(n/square_length)
+terrain1_LQ = np.zeros((n_new,m_new))
+for i in range(0, n_new):
+    for j in range(0, m_new):
+        box = terrain1[i*square_length:(i+1)*square_length, j*square_length:(j+1)*square_length]
+        terrain1_LQ[i,j]=np.sum(box)/square_size
+x = np.linspace(0,1,m_new)
+y = np.linspace(0,1,n_new)
+xm, ym = np.meshgrid(x,y)
+object_terrain1_LQ = linregtools(terrain1_LQ,x,y,6)
+terrain1_LQ_reg = object_terrain1_LQ.get_reg(LAMBDA)
+surf = ax.plot_surface(xm, ym, terrain1_LQ_reg, cmap=cm.coolwarm, linewidth=0, antialiased=False)
+print(" R2 score: ", R2(terrain1_LQ, terrain1_LQ_reg))
+
+# Customize the z axis.
+ax.zaxis.set_major_locator(LinearLocator(10))
+ax.zaxis.set_major_formatter(FormatStrFormatter("%.02f"))
+
+# Add a color bar which maps values to colors.
+fig.colorbar(surf, shrink=0.5, aspect=5)
+
+# Show the terrain
+#plt.figure()
+#plt.title('Terrain over Norway 1 (Low quality)')
+#plt.imshow(terrain1_LQ , cmap='gray')
+#plt.xlabel('x')
+#plt.ylabel('y')
+#plt.figure()
+#plt.title('Terrain over Norway 1')
+#plt.imshow(terrain1 , cmap='gray')
+#plt.xlabel('x')
+#plt.ylabel('y')
+#plt.show()

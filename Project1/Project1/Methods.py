@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import linalg
 class linregtools:
     def __init__(self, f, x, y, order):
         self.order = order
@@ -37,19 +38,8 @@ class linregtools:
 
     # Regression
     def get_reg(self, *args):
-        if len(args) == 0:
-            # get beta (Ordinary least square)
-            beta = self.__get_beta(self.X,self.z)
-        elif (len(args) == 1 and type(args[0])==float):
-            # get beta (Ridge regression)
-            LAMBDA = args[0]
-            beta = self.__get_beta(self.X,self.z,LAMBDA)
-        elif (len(args) == 2 and type(args[0])==float and type(args[1])==float):
-            # get beta (Lasso regression)
-            LAMBDA = args[0]
-            epsilon = args[1]
-            beta = self.__get_beta(self.X,self.z,LAMBDA,epsilon)
-        reg = self.__regression(self.xm,self.ym,beta)
+        beta = self.__get_beta(self.X,self.z,*args)
+        reg = self.__polynomial(beta)
         return reg
 
     # get beta (given X and z)
@@ -61,7 +51,7 @@ class linregtools:
         if len(args) >= 1:
             LAMBDA = args[0] 
             beta[np.diag_indices_from(beta)]+=LAMBDA
-        beta = np.linalg.inv(beta)    
+        beta = linalg.inv(beta)    
         beta = np.matmul(beta,XT)
         beta = np.matmul(beta,z)
 
@@ -85,8 +75,9 @@ class linregtools:
                         beta[j]=0.0
         return beta
 
-    # least squares regression
-    def __regression(self,x,y,beta):
+    # polynomial given beta
+    def __polynomial(self,beta):
+        xm = self.xm; ym = self.ym
         order = self.order
         s=0
         counter = 0
@@ -94,7 +85,7 @@ class linregtools:
         for j in range(0,order + 1):
             k = 0
             while j+k <= order:
-                s+= beta[counter]*(x**j)*(y**k)
+                s+= beta[counter]*(xm**j)*(ym**k)
                 counter +=1
                 k+=1
         return s
@@ -102,6 +93,8 @@ class linregtools:
     # bootstrap step
     def get_bootstrap_step(self, samplesize,*args):
         mn =  self.mn
+        X = self.X
+        z = self.z
         if not (1 <= samplesize and samplesize < mn):
             print("Error. Choose samplesize between 1 and ", mn-1,".")
             return 0
@@ -113,22 +106,11 @@ class linregtools:
             training_data_id = []
             for i in range(0,samplesize):
                 counter = integers[i]
-                znew[i]=self.z[counter]
-                Xnew[i,:]=self.X[counter,:]
+                znew[i]=z[counter]
+                Xnew[i,:]=X[counter,:]
                 training_data_id.append(self.correspondence[counter]) #retain pair (i,j) corresponding to counter
-            if len(args) == 0:
-                betanew = self.__get_beta(Xnew,znew)
-            elif len(args) == 1:
-                LAMBDA=args[0]
-                betanew = self.__get_beta(Xnew,znew,LAMBDA)
-            elif len(args) == 2:
-                LAMBDA=args[0]
-                epsilon = args[1]
-                betanew = self.__get_beta(Xnew,znew,LAMBDA,epsilon)
-            else:
-                print("Wrong arguments.")
-                return (0, training_data_id)
-            regnew = self.__regression(self.xm,self.ym,betanew)
+            betanew = self.__get_beta(Xnew,znew,*args)
+            regnew = self.__polynomial(betanew)
             return (regnew, training_data_id)
 
 
