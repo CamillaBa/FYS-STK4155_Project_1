@@ -1,5 +1,36 @@
 import numpy as np
 from scipy import linalg
+
+# MSE
+def MSE(x,y):
+    n = np.size(x)
+    return 1.0/n*np.sum((x-y)**2)
+
+# R2 score
+def R2(x_true,x_predict):
+    n = np.size(x_true)
+    x_avg = 1.0/n*np.sum(x_true)
+    enumerator = np.sum ((x_true-x_predict)**2)
+    denominator = np.sum((x_true-x_avg)**2)
+    return 1.0 - enumerator/denominator
+
+# Bootstrap
+def bootstrap(training_data_sample_size, iterations, original_data, object, *args):
+    f = original_data
+    if len(args)==0:
+        print("Bootstrap: Ordinary least squares")
+    elif len(args)==1:
+        print("Bootstrap: Ridge regression")
+    elif len(args)==2:
+        print("Bootstrap: LASSO regression")
+    for i in range(1,iterations+1):
+        freg_bootstrap_step, training_data_id = object.get_bootstrap_step(training_data_sample_size,*args)
+        fnew = np.copy(f)
+        for item in training_data_id:
+            fnew[item[1],item[0]]=0.0
+            freg_bootstrap_step[item[1],item[0]]=0.0
+        print("step: ", i, " MSE: ", MSE(fnew,freg_bootstrap_step)," R2 score: ", R2(fnew, freg_bootstrap_step))
+
 class linregtools:
     def __init__(self, f, x, y, order):
         self.order = order
@@ -38,7 +69,9 @@ class linregtools:
 
     # Regression
     def get_reg(self, *args):
-        beta = self.__get_beta(self.X,self.z,*args)
+        X=self.X
+        z=self.z
+        beta = self.__get_beta(X,z,*args)
         reg = self.__polynomial(beta)
         return reg
 
@@ -51,7 +84,7 @@ class linregtools:
         if len(args) >= 1:
             LAMBDA = args[0] 
             beta[np.diag_indices_from(beta)]+=LAMBDA
-        beta = linalg.inv(beta)    
+        beta = linalg.inv(beta)
         beta = np.matmul(beta,XT)
         beta = np.matmul(beta,z)
 
@@ -61,7 +94,7 @@ class linregtools:
             D = self.number_basis_elts
             ints = np.arange(0,D,1)
             beta_old = 0.0
-            while np.sum(np.abs(beta-beta_old))>=epsilon:
+            while np.linalg.norm(beta-beta_old)>=epsilon:
                 beta_old = np.copy(beta)
                 for j in range(0,D):
                     aj = 2*np.sum(X[:,j]**2)
