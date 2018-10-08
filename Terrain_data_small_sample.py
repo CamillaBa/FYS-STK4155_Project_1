@@ -29,15 +29,15 @@ data = regdata(terrain1_sample,degree)
 
 #===========================================================================================
 
-degstart = 5; degend = 25; degstep = 5; 
+degstart = 5; degend = 18; degstep = 2; 
 plot_R2_complexity(degstart,degend,degstep,terrain1_sample,"terrain sample", LAMBDA = 0.00000001)
 
 #===========================================================================================
 
-#Nstart = -18; Nstop =3; k = 10
-#plot_R2_scores(data,Nstart,Nstop,"terrain sample")
-#ols_best, ridge_best, lasso_best = plot_R2_scores_k_cross_validation(data,Nstart,Nstop,k,"terrain sample")
-#plot_3D(lasso_best, "Terrain sample model (Lasso, training model, $\lambda=10^{-11})$")
+Nstart = -8; Nstop =-2; k = 10
+plot_R2_scores(data,Nstart,Nstop,"terrain sample")
+ols_best, ridge_best, lasso_best = plot_R2_scores_k_cross_validation(data,Nstart,Nstop,k,"terrain sample")
+plot_3D(lasso_best, "Terrain sample model (Lasso, best training model)")
 
 #===========================================================================================
 
@@ -46,7 +46,7 @@ plot_R2_complexity(degstart,degend,degstep,terrain1_sample,"terrain sample", LAM
 
 #============================================================================================
 
-#plot_3D(terrain1_sample,"Terrain sample")
+plot_3D(terrain1_sample,"Terrain sample")
 #model = data.get_reg(LAMBDA,epsilon)
 #plot_3D(model, "Terrain sample model (Lasso $\lambda={}$, degree = {})".format(LAMBDA,degree))
 #print(R2(model, terrain1_sample))
