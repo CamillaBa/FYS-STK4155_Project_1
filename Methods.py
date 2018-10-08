@@ -1,3 +1,6 @@
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+from matplotlib import cm
 import numpy as np
 from scipy import linalg
 import matplotlib.pyplot as plt
@@ -10,6 +13,8 @@ def var(f_model):
     #f_model_mean = np.mean(f_model)
     return np.sum((f_model-f_model_mean)**2)/n
 
+#================================================================================================================
+
 # Bias
 def bias(f_true,f_model):
     n = np.size(f_model)
@@ -17,16 +22,22 @@ def bias(f_true,f_model):
     f_model_mean = np.mean(f_model)
     return np.sum((f_true-f_model_mean)**2)/n
 
+#================================================================================================================
+
 # MSE
 def MSE(f_true,f_model):
     n = np.size(f_model)
     return np.sum((f_true-f_model)**2)/n
+
+#================================================================================================================
 
 # Extra term
 def extra_term(f_true,f_model):
     n = np.size(f_model)
     f_model_mean = np.mean(f_model)
     return 2.0/n*np.sum((f_model_mean-f_true)*(f_model-f_model_mean))
+
+#================================================================================================================
 
 # SVD invert
 def SVDinv(A):
@@ -41,6 +52,8 @@ def SVDinv(A):
     UT = np.transpose(U); V = np.transpose(VT); invD = np.linalg.inv(D)
     return np.matmul(V,np.matmul(invD,UT))
 
+#================================================================================================================
+
 # R2 score
 def R2(x_true,x_predict):
     n = np.size(x_true)
@@ -49,29 +62,53 @@ def R2(x_true,x_predict):
     denominator = np.sum((x_true-x_avg)**2)
     return 1.0 - enumerator/denominator
 
+#================================================================================================================
+
+# get sub-entries of matrix A
+def get_subset(A,indices):
+    '''given an indexing set "indices", return the vector consisting of 
+    entries A[i,j] where (i,j) is an entry in indices.'''
+    N = len(indices)
+    B = np.zeros(N)
+    for k in range(0,N):
+        i = indices[k][0]
+        j = indices[k][1]
+        B[k] = A[j,i]
+    return B
+
+#================================================================================================================
+
 # k fold cross validation
 def k_cross_validation(data,partition,*args):
+    '''function that finds the best model from k-cross validation resampling.
+    Given a partition, we single out the training data with the highest R2 score
+    and return the the model and the indices that consitute the training and
+    testing data.
+    '''
     f = data.f; X = data.X; z = data.z; correspondence = data.correspondence
     bestR2score = float("-inf")
     k = len(partition)
-    for i, training_data in enumerate(partition):
-        test_data = [x for j,x in enumerate(partition) if j!=i]
-        test_data = sum(test_data, [])
+    for i, test_data in enumerate(partition):
+        training_data = [x for j,x in enumerate(partition) if j!=i]
+        training_data = sum(training_data, [])
         beta = data.get_beta(X[training_data],z[training_data],*args)
         freg = data.model(beta)
         test_data = [correspondence[j] for j in test_data]
         training_data = [correspondence[j] for j in training_data]
-        R2score = R2(f[test_data], freg[test_data])
+        R2score = R2(get_subset(f,test_data), get_subset(freg,test_data))
         if R2score > bestR2score:
             bestR2score = R2score
             best = i
             bestmodel = np.copy(freg); best_test_data = np.copy(test_data); best_training_data = np.copy(training_data)
     return bestmodel, best_test_data, best_training_data 
 
+
+#================================================================================================================
+
 class regdata:
     def __init__(self, f, degree):
         # initializing variables
-        m = len(f[0,:]); n = len(f); mn = m*n; 
+        m = len(f[0,:]); n = len(f);  mn = m*n; 
         x = np.linspace(0, 1, m); y = np.linspace(0, 1, n); z = np.zeros(mn); xy = np.zeros((mn,2)); 
 
         # initializing some self variables
@@ -81,7 +118,7 @@ class regdata:
         counter = 0
         for i in range(0,m):
             for j in range(0,n):
-                z[counter]=f[j,i] #wtf???
+                z[counter]=f[j,i] #wtf
                 xy[counter,:] = [x[i],y[j]]
                 self.correspondence.append([i,j]) #Saves the 1-1 correspondence: {counter} <-> {(i,j)} for later
                 counter+=1
@@ -174,6 +211,9 @@ class regdata:
         return s
 
     def get_data_partition(self,k):
+        ''' Creates a random partition of k (almost) equally sized parts of the array
+        {1,2,...,mn}. This can be used to make training/testing data.
+        '''
         mn =  self.mn; correspondence = self.correspondence
         indices = np.arange(mn)
         indices_shuffle = np.arange(mn)
@@ -186,6 +226,9 @@ class regdata:
         return partition
 
     def bootstrap_step(self, samplesize, *args):
+        '''Finds and returns the coefficient that determines a model (ols, Ridge or Lasso),
+        depending on args*.
+        '''
         mn =  self.mn; X = self.X; z = self.z;  #relabeling self variables
         integers = np.random.randint(low=0, high=mn-1, size=samplesize)
         znew =  z[integers]
@@ -203,12 +246,40 @@ class regdata:
         sigma2=1.0/(N-p-1)*np.sum((f-reg)*(f-reg))
         return sigma2*invXTX # OBS! Based on matrix inversion. Inaccurate for  N,p>>0.
 
+#================================================================================================================
+
+def plot_3D(f,plottitle):
+    ''' Simple function to create 3d plot of the given data f,
+    with plotitle.
+    '''
+
+    m = len(f[0,:]); n = len(f);
+    x = np.linspace(0, 1, m)
+    y = np.linspace(0, 1, n);
+    xm, ym = np.meshgrid(x,y)
+
+    # Plot f
+    fig = plt.figure()
+    ax = fig.gca(projection="3d")
+    surf = ax.plot_surface(xm, ym, f, cmap=cm.coolwarm, linewidth=0, antialiased=False)
+
+    # Customize the z axis.
+    ax.zaxis.set_major_locator(LinearLocator(10))
+    ax.zaxis.set_major_formatter(FormatStrFormatter("%.02f"))
+    ax.text2D(0.05, 0.95, plottitle, transform=ax.transAxes)
+    ax.view_init(30, 60)
+
+    # Add a color bar which maps values to colors.
+    fig.colorbar(surf, shrink=0.5, aspect=5)
+
+#================================================================================================================
 
 def numerical_error(data,LAMBDA):
     '''Rough numerical analysis of matrix inversions for this problem. Comparison of error and time usage
     of SVD (singular values decomposition) for matrix inversion against scipy.linalg inversion algorithm.
     Printing results to terminal.
     '''
+    return_items = []
 
     degree = data.degree; m = data.m; n = data.n
     # Study numerical error and time for SVD
@@ -217,25 +288,35 @@ def numerical_error(data,LAMBDA):
     X = data.X; XT = np.transpose(X); XTX = np.matmul(XT,X) #Obtaining XTX
     start_time = time.time() # start meassuring time
     inv_XTX = linalg.inv(XTX) # inversion using scipi.linalg
-    print("Inverting XTX without SVD", "--- %s seconds ---" % (time.time() - start_time))
+    end_time = time.time()
+    print("Inverting XTX without SVD", "--- %s seconds ---" % (end_time - start_time)); return_items.append(end_time - start_time)
     inv_XTX_ = np.copy(inv_XTX) # storing inversion of XTX for later
     start_time = time.time()
     inv_XTX = SVDinv(XTX)
-    print("Inverting XTX with SVD", "--- %s seconds ---" % (time.time() - start_time))
+    end_time = time.time()
+    print("Inverting XTX with SVD", "--- %s seconds ---" % (end_time - start_time)); return_items.append(end_time - start_time)
     print(' ')
     I_approx_ = np.matmul(inv_XTX_,XTX); # approximate I (no SVD)
     I = np.identity(len(I_approx_)); # obtaining analytical I
-    print("|(X^TX)^-1(X^TX)-I| = ",np.linalg.norm(I_approx_-I), " (no SVD)")
+    output = np.linalg.norm(I_approx_-I)
+    print("|(X^TX)^-1(X^TX)-I| = ",output, " (no SVD)"); return_items.append(output)
     I_approx = np.matmul(inv_XTX,XTX) # approximate I (SVD)
-    print("|(X^TX)^-1(X^TX)-I| = ",np.linalg.norm(I_approx-I), " (SVD)")
+    output = np.linalg.norm(I_approx-I)
+    print("|(X^TX)^-1(X^TX)-I| = ",np.linalg.norm(I_approx-I), " (SVD)"); return_items.append(output)
     XTX[np.diag_indices_from(XTX)]+=LAMBDA
     inv_XTX = linalg.inv(XTX)
     I_approx_ = np.matmul(inv_XTX,XTX) # approximate I (no SVD)
-    print("|(X^TX + I LAMBDA)^-1(X^TX + I LAMBDA)-I| = ",np.linalg.norm(I_approx_-I), ", LAMBDA = ", LAMBDA, " (no SVD)")
+    output = np.linalg.norm(I_approx_-I)
+    print("|(X^TX + I LAMBDA)^-1(X^TX + I LAMBDA)-I| = ",output , ", LAMBDA = ", LAMBDA, " (no SVD)"); return_items.append(output)
     inv_XTX = SVDinv(XTX)
     I_approx = np.matmul(inv_XTX,XTX)
-    print("|(X^TX + I LAMBDA)^-1(X^TX + I LAMBDA)-I| = ",np.linalg.norm(I_approx-I), ", LAMBDA = ", LAMBDA, " (SVD)")
+    output = np.linalg.norm(I_approx-I)
+    print("|(X^TX + I LAMBDA)^-1(X^TX + I LAMBDA)-I| = ",output, ", LAMBDA = ", LAMBDA, " (SVD)"); return_items.append(output)
     print(' ')
+    
+    return return_items
+
+#================================================================================================================
 
 def plot_R2_scores(data,Nstart,Nstop,name):
     ''' This function makes a plot of the R2 scores vs Lambda of the different regression methods,
@@ -254,18 +335,21 @@ def plot_R2_scores(data,Nstart,Nstop,name):
         R2_ols[i]=R2(f, data.get_reg())
         R2_Ridge[i]=R2(f, data.get_reg(LAMBDA))
         R2_Lasso[i]=R2(f, data.get_reg(LAMBDA,epsilon))
-    plotitle = '$R^2$ score of degree {} polynomial fit on {} with noise'.format(degree,name)
+        print("Completed lambda: ", LAMBDA, " Completion: {:.1%}".format(float(i)/(N-1)))
+    plotitle = '$R^2$ score of degree {} polynomial fit on {}'.format(degree,name)
     plt.figure()
     plt.plot(np.log10(lambdas),R2_ols)
     plt.plot(np.log10(lambdas),R2_Ridge)
     plt.plot(np.log10(lambdas),R2_Lasso,'--')
-    plt.axis([Nstart, N+Nstart, 0, 1])
+    plt.axis([Nstart, N+Nstart-1, 0, 1])
     plt.xlabel('log $\lambda$')
     plt.ylabel('$R^2$ score')
     plt.legend(('Ordinary least square','Ridge','Lasso'))
-    plt.title('$R^2$ score of %s order polynomial fit on Franke function with noise'%degree)
+    plt.title(plotitle)
     plt.grid(True)
     plt.show(block=False)
+
+#================================================================================================================
 
 def plot_R2_scores_k_cross_validation(data,Nstart,Nstop,k,name):
     ''' This function makes a plot of the R2 scores vs LAMBDA of the best iteration from a k-fold cross validation on 
@@ -288,27 +372,36 @@ def plot_R2_scores_k_cross_validation(data,Nstart,Nstop,k,name):
     R2_Ridge_training_data = np.zeros(N)
 
     # Best OLS model on training data from k-fold cross validation
-    freg, test_data_id, training_data_id= k_cross_validation(data,partition) 
-    R2_ols_test_data[:] = R2(f[test_data_id],freg[test_data_id])
-    R2_ols_training_data[:] = R2(f[training_data_id],freg[training_data_id])
+    freg, test_data_id, training_data_id = k_cross_validation(data,partition) 
+    R2_ols_test_data[:] = R2(get_subset(f,test_data_id),get_subset(freg,test_data_id))
+    R2_ols_training_data[:] = R2(get_subset(f,training_data_id),get_subset(freg,training_data_id))
 
+    ols_best = np.copy(freg)
+    ridge_best_list, lasso_best_list = [],[]
     for i in range(0,N): 
         LAMBDA = 10**(Nstart+i)
         lambdas[i]=LAMBDA
 
         # Best Ridge model on training data from k-fold cross validation
-        freg, test_data_id, training_data_id = k_cross_validation(data,partition,LAMBDA) 
-        R2_Ridge_test_data[i] = R2(f[test_data_id],freg[test_data_id])
-        R2_Ridge_training_data[i] = R2(f[training_data_id],freg[training_data_id])
+        freg, test_data_id, training_data_id = k_cross_validation(data,partition,LAMBDA)
+        ridge_best_list.append(freg)
+        R2_Ridge_test_data[i] = R2(get_subset(f,test_data_id),get_subset(freg,test_data_id))
+        R2_Ridge_training_data[i] = R2(get_subset(f,training_data_id),get_subset(freg,training_data_id))
 
         # Best Lasso model on training data from k-fold cross validation
-        freg, test_data_id, training_data_id = k_cross_validation(data,partition,LAMBDA,epsilon) 
-        R2_Lasso_test_data[i] = R2(f[test_data_id],freg[test_data_id])
-        R2_Lasso_training_data[i] = R2(f[training_data_id],freg[training_data_id])
+        freg, test_data_id, training_data_id = k_cross_validation(data,partition,LAMBDA,epsilon)
+        lasso_best_list.append(freg)
+        R2_Lasso_test_data[i] = R2(get_subset(f,test_data_id),get_subset(freg,test_data_id))
+        R2_Lasso_training_data[i] = R2(get_subset(f,training_data_id),get_subset(freg,training_data_id))
 
         print("Completed lambda: ", LAMBDA, " Completion: {:.1%}".format(float(i)/(N-1)))
 
-    plotitle = '$R^2$ scores of degree {} polynomial fit on {} with noise ($k=${})'.format(degree,name,k)
+    ibest_ridge = np.argmax(R2_Ridge_test_data)
+    ibest_lasso = np.argmax(R2_Lasso_test_data)
+    ridge_best = ridge_best_list[ibest_ridge]
+    lasso_best = lasso_best_list[ibest_lasso]
+
+    plotitle = '$R^2$ scores of degree {} polynomial fit on {}, $k=${}'.format(degree,name,k)
     plt.figure()
     plt.plot(np.log10(lambdas),R2_ols_test_data)
     plt.plot(np.log10(lambdas),R2_ols_training_data,'--')
@@ -316,7 +409,7 @@ def plot_R2_scores_k_cross_validation(data,Nstart,Nstop,k,name):
     plt.plot(np.log10(lambdas),R2_Ridge_training_data,'--')
     plt.plot(np.log10(lambdas),R2_Lasso_test_data)
     plt.plot(np.log10(lambdas),R2_Lasso_training_data,'--')
-    plt.axis([Nstart, N+Nstart-2, 0, 1])
+    plt.axis([Nstart, Nstart+N-2, 0, 1])
     plt.xlabel('log $\lambda$')
     plt.ylabel('$R^2$ score')
     if (np.amax(R2_ols_test_data)> 0 and np.amax(R2_ols_training_data)> 0):
@@ -331,18 +424,23 @@ def plot_R2_scores_k_cross_validation(data,Nstart,Nstop,k,name):
     plt.grid(True)
     plt.show(block=False)
 
-def plot_R2_complexity(degstart,degend,degstep,f,name):
-    # Comparing R2 scores, regression with fixed LAMBDA, variable degree as well as variance and Bias
-    LAMBDA = 0.00001; epsilon = 0.001
+    return ols_best, ridge_best, lasso_best
+
+#================================================================================================================
+
+def plot_R2_complexity(degstart,degend,degstep,f,name, LAMBDA = 0.00001, epsilon = 0.001):
+    ''' Comparing R2 scores, regression with fixed LAMBDA, variable degree as well as variance and Bias
+    Plotting the result.
+    '''
     degrees = np.arange(degstart,degend+1,degstep)
     N = len(degrees)
-    R2_ols = np.zeros(N); R2_Ridge = np.zeros(N); R2_Lasso = np.zeros(N)
+    R2_ols, R2_Ridge, R2_Lasso = np.zeros(N), np.zeros(N), np.zeros(N)
     for i, degree in enumerate(degrees):
         data_f = regdata(f,degree)
         R2_ols[i]=R2(f, data_f.get_reg())
         R2_Ridge[i]=R2(f, data_f.get_reg(LAMBDA))
         R2_Lasso[i]=R2(f, data_f.get_reg(LAMBDA,epsilon))
-        print(degree)
+        print("Completed degree: ", degree, " Completion: {:.1%}".format(float(i)/(N-1)))
     plotitle = '$R^2$ score of polynomial fit on {} with $\lambda=${}'.format(name,LAMBDA)
     plt.figure()
     plt.plot(degrees,R2_ols)
@@ -356,9 +454,10 @@ def plot_R2_complexity(degstart,degend,degstep,f,name):
     plt.grid(True)
     plt.show(block=False)
 
-def plot_MSE_variance(degstart, degend, degstep, f):
-    # Comparing MSE, bias, variance and additional terms
-    LAMBDA = 0.00001; epsilon = 0.001;
+#================================================================================================================
+
+def plot_MSE_variance(degstart, degend, degstep, f, LAMBDA = 0.01, epsilon = 0.001):
+    # Comparing MSE, bias, variance and additional terms as function of complexity.
     degrees = np.arange(degstart,degend+1,degstep)
     N = len(degrees)
     data = regdata(f,5)
@@ -374,8 +473,8 @@ def plot_MSE_variance(degstart, degend, degstep, f):
                 fvar[i], fbias[i], fMSE[i], fextra_terms[i] =  var(freg), bias(f,freg), MSE(f,freg), extra_term(f,freg)
             elif k>0:
                 freg, test_data_id, training_data_id = k_cross_validation(data, partition, *args)
-                ft = f[test_data_id] 
-                fregt = freg[test_data_id] 
+                ft = get_subset(f,test_data_id)
+                fregt = get_subset(freg,test_data_id)
                 fvar[i], fbias[i], fMSE[i], fextra_terms[i] =  var(fregt), bias(ft,fregt), MSE(ft,fregt), extra_term(ft,fregt)
             print("Completed degree: ", degree, " Completion: {:.1%}".format(float(degree-degstart)/(degend-degstart)))
         plt.figure()
@@ -389,30 +488,33 @@ def plot_MSE_variance(degstart, degend, degstep, f):
         plt.grid(True)
         plt.show(block=False)
 
-    ## Ordinary least square plot
-    #makeplot("Ordinary least squares")
-    #plt.title("Error of  ordinary least squares")
+    #It is a good idea to comment out the plots that you dont need
 
-    ## Ridge plot
-    #makeplot("Ridge regression",LAMBDA)
-    #plt.title("Error of Ridge regression, $\lambda=${}".format(LAMBDA))
 
-    ## Ridge plot
-    #makeplot("Lasso regression",LAMBDA,epsilon)
-    #plt.title("Error of Lasso regression, $\lambda=${}".format(LAMBDA))
+    # Ordinary least square plot
+    makeplot("Ordinary least squares")
+    plt.title("Error of  ordinary least squares")
+
+    # Ridge plot
+    makeplot("Ridge regression",LAMBDA)
+    plt.title("Error of Ridge regression, $\lambda=${}".format(LAMBDA))
+
+    # Lasso plot
+    makeplot("Lasso regression",LAMBDA,epsilon)
+    plt.title("error of lasso regression, $\lambda=${}".format(LAMBDA))
 
     # k-cross validation
     partition = data.get_data_partition(12)
 
-    ## Ordinary least square plot
-    #makeplot("Ordinary least squares 12-cross validation", k=12)
-    #plt.title("Error of ordinary least squares \n using 12-cross validation")
+    # Ordinary least square plot
+    makeplot("Ordinary least squares 12-cross validation", k=12)
+    plt.title("Error of ordinary least squares \n using 12-cross validation")
     
-    ## Ridge plot
-    #makeplot("Ridge regression 12-cross validation", LAMBDA, k=12)
-    #plt.title("Error of Ridge regression, $\lambda=${} \n using 12-cross validation".format(LAMBDA))
-
     # Ridge plot
+    makeplot("Ridge regression 12-cross validation", LAMBDA, k=12)
+    plt.title("Error of Ridge regression, $\lambda=${} \n using 12-cross validation".format(LAMBDA))
+
+    # Lasso plot
     makeplot("Lasso regression 12-cross validation", LAMBDA, epsilon, k=12)
     plt.title("Error of Lasso regression, $\lambda=${} \n using 12-cross validation".format(LAMBDA))
 
@@ -420,41 +522,3 @@ def plot_MSE_variance(degstart, degend, degstep, f):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## k fold cross validation
-#def k_cross_validation(data,partition,k,*args):
-#    f = data.f; X = data.X; z = data.z; correspondence = data.correspondence
-#    bestR2score = float("-inf")
-#    k = len(partition)
-#    for i in range(0,k):
-#        training_data = partition[i]
-#        test_data=[x for j,x in enumerate(partition) if j!=i]
-#        test_data = sum(test_data, [])
-#        beta = data.get_beta(X[training_data],z[training_data],*args)
-#        freg = data.model(beta)
-#        test_data = [correspondence[j] for j in test_data]
-#        training_data = [correspondence[j] for j in training_data]
-#        R2score = R2(f[test_data], freg[test_data])
-#        if R2score > bestR2score:
-#            bestR2score = R2score
-#            best = i
-#            bestmodel = np.copy(freg); best_test_data = np.copy(test_data); best_training_data = np.copy(training_data)
-#    return bestmodel, best_test_data, best_training_data

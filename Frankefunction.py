@@ -6,13 +6,12 @@ import numpy as np
 from scipy import linalg
 import itertools
 from Methods import *
-import time
 
 # get the same random numbers each time we run the program
 np.random.seed(10) 
 
 # Make data
-n=20; degree = 5; LAMBDA = 0.01; epsilon = 0.01 #some parameters
+n=20; degree = 5; LAMBDA = 0.00000001 #some parameters
 x = np.linspace(0, 1, n)
 y = np.linspace(0, 1, n)
 xm, ym = np.meshgrid(x,y)
@@ -30,17 +29,50 @@ f = f + np.random.randn(n,n)*0.05
 data_f = regdata(f,degree)
 freg = data_f.get_reg()
 
-#Nstart = -8; Nstop = 8; k = 12 #k=12 gives best fit on training data
-#plot_R2_scores(data_f,Nstart,Nstop,"Fanke Function")
-#plot_R2_scores_k_cross_validation(data_f,Nstart,Nstop,k,"Franke Function")
+#===========================================================================================
 
-#degstart = 0; degend = 100; degstep = 5; 
-#plot_R2_complexity(degstart,degend,degstep,f,"Franke Function")
+Nstart = -8; Nstop = 8; k = 12 #k=12 gives best fit on training data
+plot_R2_scores(data_f,Nstart,Nstop,"Franke Function with noise ")
+plot_R2_scores_k_cross_validation(data_f,Nstart,Nstop,k,"Franke Function with noise ")
 
-#numerical_error(data_f,LAMBDA)
+#===========================================================================================
 
-degstart = 5; degend = 100; degstep = 10; # warning, big degend results in long run time
-plot_MSE_variance(degstart, degend, degstep, f)
+#degstart = 5; degend = 75; degstep = 10; 
+#plot_R2_complexity(degstart,degend,degstep,f,"Franke Function",LAMBDA = 0.01)
+
+#===========================================================================================
+
+## study numerical error/ time of matrix inversion with and without SVD
+#degrees = np.arange(5,101,5); length = len(degrees)
+#duration, duration_svd, error, error_lambda, error_svd, error_svd_lambda = np.zeros(length), np.zeros(length), np.zeros(length), np.zeros(length), np.zeros(length), np.zeros(length),
+#for i, degree in enumerate(degrees):
+#    data_f = regdata(f,degree)
+#    duration[i], duration_svd[i], error[i], error_lambda[i], error_svd[i], error_svd_lambda[i] = numerical_error(data_f,LAMBDA)
+
+#plt.figure()
+#plt.plot(degrees, duration)
+#plt.plot(degrees, duration_svd)
+#plt.xlabel("degree")
+#plt.ylabel("time [$s$]")
+#plt.legend(("regular","SVD"))
+#plt.title("Time of inversion of design matrix $X$")
+
+#plt.figure()
+#plt.plot(degrees, np.log10(error))
+#plt.plot(degrees, np.log10(error_svd),'--')
+#plt.plot(degrees, np.log10(error_lambda))
+#plt.plot(degrees, np.log10(error_svd_lambda),'--')
+#plt.xlabel("degree")
+#plt.ylabel("log$_{10}|(X^TX + I \lambda)^{-1}(X^TX + I \lambda)-I|$")
+#plt.legend(("regular, $\lambda = 0$","SVD, $\lambda = 0$", "regular, $\lambda > 0$","SVD, $\lambda > 0$"))
+#plt.title("Error of matrix inversion $\lambda=0.00001$")
+
+#===========================================================================================
+
+#degstart = 5; degend = 65; degstep = 5; # warning, big degend results in long run time
+#plot_MSE_variance(degstart, degend, degstep, f)
+
+#===========================================================================================
 
 ## Get variance of betas
 #var_covar_matrix = data_f.var_covar_matrix(freg)
@@ -80,6 +112,8 @@ plot_MSE_variance(degstart, degend, degstep, f)
 #                                 confidence_interval[i][1]))
 #file.close()
 
+#===========================================================================================
+
 ## bootstrap comparison confidence interval
 #sample_size = 200
 #N = 1000000
@@ -87,7 +121,7 @@ plot_MSE_variance(degstart, degend, degstep, f)
 #betas = np.zeros((N,D))
 #Ebeta, varbeta = np.zeros(D), np.zeros(D)
 #for i in range(0,N):
-#    betas[i,:] = data_f.bootstrap_step(sample_size)
+#    betas[i,:] = data_f.bootstrap_step(sample_size,0.000000001)
 #    Ebeta += betas[i,:]
 #Ebeta = Ebeta/N
 #for i in range(0,D):
@@ -117,5 +151,4 @@ plot_MSE_variance(degstart, degend, degstep, f)
 #                                 confidence_interval[i][0],
 #                                 confidence_interval[i][1]))
 #file.close()
-
 plt.show()
