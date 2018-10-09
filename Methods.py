@@ -64,6 +64,14 @@ def R2(x_true,x_predict):
 
 #================================================================================================================
 
+## Mean
+#def mean(x):
+#    n = np.size(x)
+#    x_avg = np.sum(x)/n
+#    return x_avg
+
+#================================================================================================================
+
 # get sub-entries of matrix A
 def get_subset(A,indices):
     '''given an indexing set "indices", return the vector consisting of 
@@ -76,32 +84,94 @@ def get_subset(A,indices):
         B[k] = A[j,i]
     return B
 
-#================================================================================================================
 
-# k fold cross validation
-def k_cross_validation(data,partition,*args):
-    '''function that finds the best model from k-cross validation resampling.
-    Given a partition, we single out the training data with the highest R2 score
-    and return the the model and the indices that consitute the training and
-    testing data.
-    '''
-    f = data.f; X = data.X; z = data.z; correspondence = data.correspondence
-    bestR2score = float("-inf")
-    k = len(partition)
-    for i, test_data in enumerate(partition):
-        training_data = [x for j,x in enumerate(partition) if j!=i]
-        training_data = sum(training_data, [])
-        beta = data.get_beta(X[training_data],z[training_data],*args)
-        freg = data.model(beta)
-        test_data = [correspondence[j] for j in test_data]
-        training_data = [correspondence[j] for j in training_data]
-        R2score = R2(get_subset(f,test_data), get_subset(freg,test_data))
-        if R2score > bestR2score:
-            bestR2score = R2score
-            best = i
-            bestmodel = np.copy(freg); best_test_data = np.copy(test_data); best_training_data = np.copy(training_data)
-    return bestmodel, best_test_data, best_training_data 
+#============================================================================================================================
 
+class k_cross_validation:
+    '''An k-cross validation object is initialized by passing to it data of the type linreg,
+    and a paritition of the data. The class function R2 calculates the mean R2 scores
+    of test and training data for the given model. The function MSE calculates the mean MSE, bias,
+    variance and error terms of the test data for the given model. These quantities are stored
+    as self variables.'''
+
+    def __init__(self, data, partition,*args):
+        self.data = data; self.partition = partition; self.args = args;
+        #f = data.f; X = data.X; z = data.z; correspondence = data.correspondence; 
+        self.k = len(partition)
+        self.test_R2, self.test_var, self.test_bias, self.test_MSE, self.test_extra_terms = 0, 0, 0, 0, 0
+        self.train_R2 = 0
+        
+        #self.train_var, self.train_bias, self.train_MSE, self.train_extra_terms = 0, 0, 0, 0
+
+    def R2(self):
+        data = self.data
+        f = data.f; X = data.X; z = data.z; correspondence = data.correspondence; partition = self.partition
+        k = self.k
+        args = self.args
+        
+        test_R2, train_R2 = 0, 0
+
+        for i, test_data in enumerate(partition):
+            train_data = [x for j,x in enumerate(partition) if j!=i]
+            train_data = sum(train_data, [])
+            beta = data.get_beta(X[train_data],z[train_data],*args)
+            freg = data.model(beta)
+            test_data = [correspondence[j] for j in test_data]
+            train_data = [correspondence[j] for j in train_data]
+
+            # test errors:
+            ftest = get_subset(f,test_data); fregtest = get_subset(freg,test_data)
+            test_R2 +=  R2(ftest,fregtest)
+
+            #training errors:
+            ftrain = get_subset(f,train_data); fregtrain = get_subset(freg,train_data)
+            train_R2 +=  R2(ftrain,fregtrain)
+
+        # self variables
+        self.test_R2 = test_R2/k
+        self.train_R2 = train_R2/k
+
+    def MSE(self):
+        data = self.data
+        f = data.f; X = data.X; z = data.z; correspondence = data.correspondence; partition = self.partition
+        k = self.k
+        args = self.args
+
+        test_var, test_bias, test_MSE, test_extra_terms = 0, 0, 0, 0
+        #train_var, train_bias, train_MSE, train_extra_terms = 0, 0, 0, 0
+
+        for i, test_data in enumerate(partition):
+            train_data = [x for j,x in enumerate(partition) if j!=i]
+            train_data = sum(train_data, [])
+            beta = data.get_beta(X[train_data],z[train_data],*args)
+            freg = data.model(beta)
+            test_data = [correspondence[j] for j in test_data]
+            # train_data = [correspondence[j] for j in train_data]
+
+            # test errors:
+            ftest = get_subset(f,test_data); fregtest = get_subset(freg,test_data)
+            test_var += var(fregtest) 
+            test_bias += bias(ftest,fregtest)
+            test_MSE += MSE(ftest,fregtest)
+            test_extra_terms += extra_term(ftest,fregtest)
+
+            ##training errors:
+            #ftrain = get_subset(f,train_data); fregtrain = get_subset(freg,train_data)
+            #train_var += var(fregtrain) 
+            #train_bias += bias(ftrain,fregtrain)
+            #train_MSE += MSE(ftrain,fregtrain)
+            #train_extra_terms += extra_term(ftrain,fregtrain)
+
+        # self variables
+        self.test_var = test_var/k
+        self.test_bias = test_bias/k
+        self.test_MSE = test_MSE/k
+        self.test_extra_terms = test_extra_terms/k
+
+        #self.train_var = train_var/k
+        #self.train_bias = train_bias/k
+        #self.train_MSE = train_MSE/k
+        #self.train_extra_terms = train_extra_terms/k
 
 #================================================================================================================
 
@@ -271,6 +341,7 @@ def plot_3D(f,plottitle):
 
     # Add a color bar which maps values to colors.
     fig.colorbar(surf, shrink=0.5, aspect=5)
+    plt.show(block=False)
 
 #================================================================================================================
 
@@ -318,13 +389,12 @@ def numerical_error(data,LAMBDA):
 
 #================================================================================================================
 
-def plot_R2_scores(data,Nstart,Nstop,name):
+def plot_R2_scores(data,Nstart,Nstop,name, epsilon = 0.001):
     ''' This function makes a plot of the R2 scores vs Lambda of the different regression methods,
     for a given dataset.'''
 
     degree = data.degree; f = data.f # obtaining class data
     N = Nstop-Nstart # number of lambdas
-    epsilon = 0.01
     lambdas = np.zeros(N)
     R2_ols = np.zeros(N)
     R2_Ridge = np.zeros(N)
@@ -351,7 +421,7 @@ def plot_R2_scores(data,Nstart,Nstop,name):
 
 #================================================================================================================
 
-def plot_R2_scores_k_cross_validation(data,Nstart,Nstop,k,name):
+def plot_R2_scores_k_cross_validation(data,Nstart,Nstop,k,name, epsilon = 0.001):
     ''' This function makes a plot of the R2 scores vs LAMBDA of the best iteration from a k-fold cross validation on 
     the data set from the given data. Best in the sense that the fit had the highest R2 score on testing data. The same 
     partition of the data set is used for each lambda, and each time we select the best training data on which we base the model.
@@ -359,47 +429,43 @@ def plot_R2_scores_k_cross_validation(data,Nstart,Nstop,k,name):
 
     degree = data.degree; f = data.f # obtaining class data
     N = Nstop-Nstart # number of lambdas
-    epsilon = 0.001
 
     # Comparing R2 scores, regression with fixed degree, variable LAMBDA
     lambdas = np.zeros(N)
     partition = data.get_data_partition(k)
-    R2_ols_test_data = np.zeros(N)
-    R2_ols_training_data = np.zeros(N)
+    kval = k_cross_validation(data,partition)
+    kval.R2()
+    
     R2_Lasso_test_data = np.zeros(N)
     R2_Lasso_training_data = np.zeros(N)
     R2_Ridge_test_data = np.zeros(N)
     R2_Ridge_training_data = np.zeros(N)
 
-    # Best OLS model on training data from k-fold cross validation
-    freg, test_data_id, training_data_id = k_cross_validation(data,partition) 
-    R2_ols_test_data[:] = R2(get_subset(f,test_data_id),get_subset(freg,test_data_id))
-    R2_ols_training_data[:] = R2(get_subset(f,training_data_id),get_subset(freg,training_data_id))
+    # OLS R2 score
+    R2score_ols_test, R2score_ols_train = kval.test_R2, kval.train_R2
+    R2_ols_test_data = np.ones(N)*R2score_ols_test
+    R2_ols_training_data = np.ones(N)*R2score_ols_train
 
-    ols_best = np.copy(freg)
-    ridge_best_list, lasso_best_list = [],[]
     for i in range(0,N): 
         LAMBDA = 10**(Nstart+i)
         lambdas[i]=LAMBDA
+        kval = k_cross_validation(data,partition,LAMBDA)
+        kval.R2()
 
-        # Best Ridge model on training data from k-fold cross validation
-        freg, test_data_id, training_data_id = k_cross_validation(data,partition,LAMBDA)
-        ridge_best_list.append(freg)
-        R2_Ridge_test_data[i] = R2(get_subset(f,test_data_id),get_subset(freg,test_data_id))
-        R2_Ridge_training_data[i] = R2(get_subset(f,training_data_id),get_subset(freg,training_data_id))
+        # Ridge R2 score
+        R2score_ridge_test, R2score_ridge_train = kval.test_R2, kval.train_R2
+        R2_Ridge_test_data[i] = R2score_ridge_test
+        R2_Ridge_training_data[i] = R2score_ridge_train
 
-        # Best Lasso model on training data from k-fold cross validation
-        freg, test_data_id, training_data_id = k_cross_validation(data,partition,LAMBDA,epsilon)
-        lasso_best_list.append(freg)
-        R2_Lasso_test_data[i] = R2(get_subset(f,test_data_id),get_subset(freg,test_data_id))
-        R2_Lasso_training_data[i] = R2(get_subset(f,training_data_id),get_subset(freg,training_data_id))
+        kval = k_cross_validation(data,partition,LAMBDA,epsilon)
+        kval.R2()
+
+        # Lasso R2 score
+        R2score_lasso_test, R2score_lasso_train = kval.test_R2, kval.train_R2
+        R2_Lasso_test_data[i] = R2score_lasso_test
+        R2_Lasso_training_data[i] = R2score_lasso_train
 
         print("Completed lambda: ", LAMBDA, " Completion: {:.1%}".format(float(i)/(N-1)))
-
-    ibest_ridge = np.argmax(R2_Ridge_test_data)
-    ibest_lasso = np.argmax(R2_Lasso_test_data)
-    ridge_best = ridge_best_list[ibest_ridge]
-    lasso_best = lasso_best_list[ibest_lasso]
 
     plotitle = '$R^2$ scores of degree {} polynomial fit on {}, $k=${}'.format(degree,name,k)
     plt.figure()
@@ -424,7 +490,7 @@ def plot_R2_scores_k_cross_validation(data,Nstart,Nstop,k,name):
     plt.grid(True)
     plt.show(block=False)
 
-    return ols_best, ridge_best, lasso_best
+    #return ols_best, ridge_best, lasso_best
 
 #================================================================================================================
 
@@ -456,7 +522,7 @@ def plot_R2_complexity(degstart,degend,degstep,f,name, LAMBDA = 0.00001, epsilon
 
 #================================================================================================================
 
-def plot_MSE_variance(degstart, degend, degstep, f, LAMBDA = 0.01, epsilon = 0.001):
+def plot_MSE_variance(degstart, degend, degstep, f, LAMBDA = 0.01, epsilon = 0.001, k=10):
     # Comparing MSE, bias, variance and additional terms as function of complexity.
     degrees = np.arange(degstart,degend+1,degstep)
     N = len(degrees)
@@ -464,20 +530,24 @@ def plot_MSE_variance(degstart, degend, degstep, f, LAMBDA = 0.01, epsilon = 0.0
     fvar = np.zeros(N); fbias = np.zeros(N); fMSE = np.zeros(N); fextra_terms = np.zeros(N)
 
     # function for plotting
-    def makeplot(methodname, *args, k=0):
+    def makeplot(methodname, *args, partition = None):
         print(methodname)
         for i, degree in enumerate(degrees):
             data = regdata(f,degree)
-            if k == 0:
+            if partition == None:
                 freg = data.get_reg(*args)
                 fvar[i], fbias[i], fMSE[i], fextra_terms[i] =  var(freg), bias(f,freg), MSE(f,freg), extra_term(f,freg)
-            elif k>0:
-                freg, test_data_id, training_data_id = k_cross_validation(data, partition, *args)
-                ft = get_subset(f,test_data_id)
-                fregt = get_subset(freg,test_data_id)
-                fvar[i], fbias[i], fMSE[i], fextra_terms[i] =  var(fregt), bias(ft,fregt), MSE(ft,fregt), extra_term(ft,fregt)
+            else:
+                kval = k_cross_validation(data, partition, *args)
+                kval.MSE()
+                fvar[i] = kval.test_var
+                fbias[i] = kval.test_bias
+                fMSE[i] = kval.test_MSE
+                fextra_terms[i] =kval.test_extra_terms
+
+                #fvar[i], fbias[i], fMSE[i], fextra_terms[i], train_var, train_bias, train_MSE, train_extra_terms 
             print("Completed degree: ", degree, " Completion: {:.1%}".format(float(degree-degstart)/(degend-degstart)))
-        plt.figure()
+        plt.figure() 
         plt.plot(degrees, fvar)
         plt.plot(degrees, fbias)
         plt.plot(degrees, fMSE,'--')
@@ -491,34 +561,30 @@ def plot_MSE_variance(degstart, degend, degstep, f, LAMBDA = 0.01, epsilon = 0.0
     #It is a good idea to comment out the plots that you dont need
 
 
-    # Ordinary least square plot
-    makeplot("Ordinary least squares")
-    plt.title("Error of  ordinary least squares")
+    ## Ordinary least square plot
+    #makeplot("Ordinary least squares")
+    #plt.title("Error of  ordinary least squares")
 
-    # Ridge plot
-    makeplot("Ridge regression",LAMBDA)
-    plt.title("Error of Ridge regression, $\lambda=${}".format(LAMBDA))
+    ## Ridge plot
+    #makeplot("Ridge regression",LAMBDA)
+    #plt.title("Error of Ridge regression, $\lambda=${}".format(LAMBDA))
 
-    # Lasso plot
-    makeplot("Lasso regression",LAMBDA,epsilon)
-    plt.title("error of lasso regression, $\lambda=${}".format(LAMBDA))
+    ## Lasso plot
+    #makeplot("Lasso regression",LAMBDA,epsilon)
+    #plt.title("Error of lasso regression, $\lambda=${}".format(LAMBDA))
 
     # k-cross validation
-    partition = data.get_data_partition(12)
+    partition_ = data.get_data_partition(k)
 
     # Ordinary least square plot
-    makeplot("Ordinary least squares 12-cross validation", k=12)
-    plt.title("Error of ordinary least squares \n using 12-cross validation")
+    # makeplot("Ordinary least squares {}-fold cross validation".format(k), partition = partition_)
+    # plt.title("Error OLS using {}-fold cross validation".format(k))
     
-    # Ridge plot
-    makeplot("Ridge regression 12-cross validation", LAMBDA, k=12)
-    plt.title("Error of Ridge regression, $\lambda=${} \n using 12-cross validation".format(LAMBDA))
+    ## Ridge plot
+    #makeplot("Ridge regression {}-fold cross validation".format(k), LAMBDA, partition=partition_)
+    #plt.title("Error Ridge using {}-fold cross validation, $\lambda=${}".format(k,LAMBDA))
 
     # Lasso plot
-    makeplot("Lasso regression 12-cross validation", LAMBDA, epsilon, k=12)
-    plt.title("Error of Lasso regression, $\lambda=${} \n using 12-cross validation".format(LAMBDA))
-
-
-
-
+    makeplot("Lasso regression {}-fold cross validation".format(k), LAMBDA, epsilon, partition_)
+    plt.title("Error Lasso using {}-fold cross validation, $\lambda=${}".format(k,LAMBDA))
 

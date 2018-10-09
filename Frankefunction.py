@@ -11,7 +11,7 @@ from Methods import *
 np.random.seed(10) 
 
 # Make data
-n=20; degree = 5; LAMBDA = 0.00000001 #some parameters
+n=20; degree = 5; LAMBDA = 0.01 #some parameters
 x = np.linspace(0, 1, n)
 y = np.linspace(0, 1, n)
 xm, ym = np.meshgrid(x,y)
@@ -31,23 +31,22 @@ freg = data_f.get_reg()
 
 #===========================================================================================
 
-#Nstart = -8; Nstop = 8; k = 12 #k=12 gives best fit on training data
+#Nstart = -8; Nstop = 4; k = 10
 #plot_R2_scores(data_f,Nstart,Nstop,"Franke Function with noise ")
-#plot_R2_scores_k_cross_validation(data_f,Nstart,Nstop,k,"Franke Function with noise ")
+#plot_R2_scores_k_cross_validation(data_f,Nstart,Nstop,k,"Franke Function with noise ") #needs fixing
 
 #===========================================================================================
 
-#degstart = 5; degend = 75; degstep = 10; 
-#plot_R2_complexity(degstart,degend,degstep,f,"Franke Function",LAMBDA = 0.01)
+#degstart = 5; degend = 15; degstep = 2; 
+#plot_R2_complexity(degstart,degend,degstep,f,"Franke Function",LAMBDA)
 
 #===========================================================================================
 
 
+#degstart = 5; degend = 50; degstep = 2; # warning, big degend results in long run time
+#plot_MSE_variance(degstart, degend, degstep, f, LAMBDA = 0.0001)
 
-#degstart = 5; degend = 65; degstep = 5; # warning, big degend results in long run time
-#plot_MSE_variance(degstart, degend, degstep, f)
-
-#===========================================================================================
+##===========================================================================================
 
 # Get variance of betas
 var_covar_matrix = data_f.var_covar_matrix(freg)

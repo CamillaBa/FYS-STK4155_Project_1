@@ -8,7 +8,7 @@ from imageio import imread
 # get the same random numbers each time we run the program
 np.random.seed(10) 
 
-degree = 10; LAMBDA = 0.00000001; epsilon = 0.001
+degree = 10; LAMBDA = 1e-11; epsilon = 0.001
 
 # Loading the terrain as np.array and normalize it
 terrain1 = np.array(imread('SRTM_data_Norway_1.tif'))
@@ -30,26 +30,26 @@ data = regdata(terrain1_sample,degree)
 #===========================================================================================
 
 degstart = 5; degend = 18; degstep = 2; 
-plot_R2_complexity(degstart,degend,degstep,terrain1_sample,"terrain sample", LAMBDA = 0.00000001)
+plot_R2_complexity(degstart,degend,degstep,terrain1_sample,"terrain sample", LAMBDA =  1e-11)
 
 #===========================================================================================
 
-Nstart = -8; Nstop =-2; k = 10
-plot_R2_scores(data,Nstart,Nstop,"terrain sample")
-ols_best, ridge_best, lasso_best = plot_R2_scores_k_cross_validation(data,Nstart,Nstop,k,"terrain sample")
-plot_3D(lasso_best, "Terrain sample model (Lasso, best training model)")
+Nstart = -8; Nstop =-3; k = 10
+#plot_R2_scores(data,Nstart,Nstop,"terrain sample")
+plot_R2_scores_k_cross_validation(data,Nstart,Nstop,k,"terrain sample")
 
 #===========================================================================================
 
-#degstart = 5; degend = 65; degstep = 10; # warning, big degend results in long run time
-#plot_MSE_variance(degstart, degend, degstep, f)
+#degstart = 5; degend = 50; degstep = 5; # warning, big degend results in long run time
+#plot_MSE_variance(degstart, degend, degstep, terrain1_sample, LAMBDA = 1e-11)
 
 #============================================================================================
 
 plot_3D(terrain1_sample,"Terrain sample")
-#model = data.get_reg(LAMBDA,epsilon)
-#plot_3D(model, "Terrain sample model (Lasso $\lambda={}$, degree = {})".format(LAMBDA,degree))
-#print(R2(model, terrain1_sample))
+data = regdata(terrain1_sample,degree)
+model = data.get_reg(LAMBDA,epsilon)
+plot_3D(model, "Terrain sample model (Lasso $\lambda={}$, degree = {})".format(LAMBDA,degree))
+print(R2(model, terrain1_sample))
 
 ## Show the terrain 2D
 #plt.figure()

@@ -7,9 +7,9 @@ import time
 from imageio import imread
 
 # Good settings for Ridge is degree = 150 and lambda = 0.000000001 
-LAMBDA = 0.0000000000001
+LAMBDA = 1e-13
 epsilon = 0.001
-degree = 60
+degree = 15
 
 # Load the terrain as np.array and normalize it
 terrain1 = np.array(imread('SRTM_data_Norway_1.tif'))
@@ -32,43 +32,46 @@ data = regdata(terrain1_lq,degree)
 
 #===================================================================================================
 
-degstart = 5; degend = 75; degstep = 10; 
-plot_R2_complexity(degstart,degend,degstep,terrain1_lq,"terrain sample", LAMBDA = 0.0000000000001)
+#degstart = 5; degend = 45; degstep = 10; 
+#plot_R2_complexity(degstart,degend,degstep,terrain1_lq,"terrain sample", LAMBDA = 1e-13)
 
 #===================================================================================================
 
-#Nstart = -13; Nstop =-2; k = 10
+#degstart = 5; degend = 45; degstep = 10; # warning, big degend results in long run time
+#plot_MSE_variance(degstart, degend, degstep, terrain1_lq, LAMBDA = 1e-13)
+
+#===================================================================================================
+
+#Nstart = -15; Nstop =-10;
 #plot_R2_scores(data,Nstart,Nstop,"terrain data (low quality)")
 
 #===================================================================================================
 
-#plot_3D(terrain1_lq,"Terrain data (low quality)")
-#plot_3D(terrain1,"Terrain data")
-#model = data.get_reg(LAMBDA,epsilon)
-#plot_3D(model, "Terrain data (low quality) (Lasso $\lambda={}$, degree = {})".format(LAMBDA,degree))
-#print(R2(model, terrain1_lq))
+plot_3D(terrain1_lq,"Terrain data (low quality)")
+plot_3D(terrain1,"Terrain data")
+model = data.get_reg(LAMBDA,epsilon)
+plot_3D(model, "Terrain data (low quality) (Lasso, $\lambda=${}, degree = {})".format(LAMBDA,degree))
+print(R2(model, terrain1_lq))
 
 #===================================================================================================
 
 #beta = data.get_beta(data.X,data.z,LAMBDA,epsilon)
 #data = regdata(terrain1,degree)
 #model = data.model(beta)
-#print(1)
 #plot_3D(model, "Terrain sample model (Lasso $\lambda={}$, degree = {})".format(LAMBDA,degree))
 #print(R2(model,terrain1))
 
-## Show the terrain
-#plt.figure()
-#plt.subplot(1, 2, 1)
-#plt.title('Terrain over Norway 1 (Low quality)')
-#plt.imshow(terrain1_lq , cmap='gray')
-#plt.xlabel('x')
-#plt.ylabel('y')
-#plt.subplot(1, 2, 2)
-#plt.title('Terrain over Norway 1')
-#plt.imshow(terrain1 , cmap='gray')
-#plt.xlabel('x')
-#plt.ylabel('y')
-
+# Show the terrain
+plt.figure()
+plt.subplot(1, 2, 1)
+plt.title('Terrain over Norway 1 (Low quality)')
+plt.imshow(terrain1_lq , cmap='gray')
+plt.xlabel('x')
+plt.ylabel('y')
+plt.subplot(1, 2, 2)
+plt.title('Terrain over Norway 1')
+plt.imshow(terrain1 , cmap='gray')
+plt.xlabel('x')
+plt.ylabel('y')
 
 plt.show()
