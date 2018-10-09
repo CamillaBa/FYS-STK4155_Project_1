@@ -17,6 +17,10 @@ Most important is the class "regdata" which stores data needed to perform
 linear regression on a data set. This file is also discussed in the methods 
 section of our report.
 
+There is also a class "k_cross_validation", which is used to calculate R2 scores,
+MSE, bias, etc, given a k-partition, and an object regdata. These are then stored
+as self variables for easy access.
+
 File 2) is a file that runs different methods from Methods.py 
 to study Franke function.  Should you run it as is, it will print
 
