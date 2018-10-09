@@ -15,8 +15,12 @@ that makes plots of R2 scores of training and test data and the like.
 
 Most important is the class "regdata" which stores data needed to perform
 linear regression on a data set. The functions of this class perform the variuos
-regression methods on the given data.
-This file is also discussed in the methods section of our report.
+regression methods on the given data. This file is also discussed in the methods section of our report.
+
+Another class is "k_cross_validation". It takes as input an object "data" of type regdata,
+and a partition of the data into k (evenly sized) subsets. It has class functions that performs k-cross validation
+for the given subsets and calcuates R2 scores, MSE, bias, and variance.
+It stores these values as self variables.
 
 File 2) is a file that runs different methods from Methods.py 
 to study Franke function.  Should you run it as is, it will print
