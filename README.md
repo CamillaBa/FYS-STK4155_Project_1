@@ -14,12 +14,9 @@ such as variance, MSE, R2 score, etc, but also more tailored functions
 that makes plots of R2 scores of training and test data and the like.
 
 Most important is the class "regdata" which stores data needed to perform
-linear regression on a data set. This file is also discussed in the methods 
-section of our report.
-
-There is also a class "k_cross_validation", which is used to calculate R2 scores,
-MSE, bias, etc, given a k-partition, and an object regdata. These are then stored
-as self variables for easy access.
+linear regression on a data set. The functions of this class perform the variuos
+regression methods on the given data.
+This file is also discussed in the methods section of our report.
 
 File 2) is a file that runs different methods from Methods.py 
 to study Franke function.  Should you run it as is, it will print
@@ -42,17 +39,15 @@ Some of the file contents is commented out because it takes a while to run. We u
 these parts to create plots for the report.
 
 File 3) is a file that is used to study a low quality version of our terrain data using
-methods from methods.py. If you run it, it will plot four plots, three 3D plots,
-that compare the high resolution to the low resolution, and a degree 15 model using Lasso.
-Again, some of the file contents is commented out because it takes a while to run, but
-we used these plots in our report.
+methods from methods.py. If you run it, it will plot four plots, three 3D plots
+that compare the high resolution to the low resolution, including a degree 15 model using Lasso.
+The last plot is a 2D comparison plot. Again, some of the file contents is commented out.
 
 File 4) is a file that is used to study the small terrain sample. If you run it as is,
-it plots a model based on training data from a k-cross validation. It also plots a 3D
-version of the true data. In addition, it plots R2 scores as functions of Lambda and
+it plots a 3D version of the true data. In addition, it plots R2 scores as functions of Lambda and
 complexity for some models.
 
-Again, some functionality is left out.
+Some functionality is commented out.
 
 It prints:
 
